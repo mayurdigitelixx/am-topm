@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TopBar } from '../components/TopBar';
-import { Clock, Car, CreditCard, ChevronRight, Tag, Info, Banknote } from 'lucide-react';
+import { Clock, Car, CreditCard, ChevronRight, Info, Banknote } from 'lucide-react';
+import { FareBreakdownCard } from '../components/FareBreakdownCard';
 import type { PaymentMethod } from '../types';
 import { formatScheduledPickup, IMMEDIATE_BOOKING_LABEL } from '../services/bookingUtils';
 
@@ -33,6 +34,10 @@ export const FarePreviewScreen: React.FC = () => {
     perHourRate: 120,
     estimatedKm: 40,
     estimatedHours: 4,
+    extraDistanceKm: 0,
+    extraHours: 0,
+    distanceCharge: 0,
+    timeCharge: 0,
     nightAllowance: 0,
     tollEstimate: 0,
     taxGst: 25,
@@ -40,6 +45,7 @@ export const FarePreviewScreen: React.FC = () => {
     discount: 50,
     finalPayable: 474,
   };
+  const formattedTotal = fare.finalPayable.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
   const handleConfirm = async () => {
     setIsSubmitting(true);
@@ -97,15 +103,13 @@ export const FarePreviewScreen: React.FC = () => {
               </div>
             ))}
 
-            {dropAddress && (selectedRideType === 'drop' || selectedRideType === 'outstation') && (
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0" />
-                <div>
-                  <span className="text-slate-400 text-[10px] block">Destination</span>
-                  <span className="text-slate-200 font-medium">{dropAddress}</span>
-                </div>
+            <div className="flex items-start gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0" />
+              <div>
+                <span className="text-slate-400 text-[10px] block">Drop-off</span>
+                <span className="text-slate-200 font-medium">{dropAddress}</span>
               </div>
-            )}
+            </div>
 
             <div className="flex items-center gap-4 pt-1 text-[11px] text-slate-400">
               <div className="flex items-center gap-1">
@@ -123,62 +127,7 @@ export const FarePreviewScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Detailed Price Breakdown */}
-        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2.5">
-          <div className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
-            <span>Price Calculation</span>
-            <span className="text-[10px] font-normal text-slate-500">Transparent Pricing</span>
-          </div>
-
-          <div className="flex justify-between text-xs text-slate-300">
-            <span>Base Chauffeur Package</span>
-            <span className="font-mono">₹{fare.baseFare}</span>
-          </div>
-
-          <div className="flex justify-between text-xs text-slate-300">
-            <span>Extra Distance Rate</span>
-            <span className="font-mono text-slate-400">₹{fare.perKmRate} / km</span>
-          </div>
-
-          <div className="flex justify-between text-xs text-slate-300">
-            <span>Extra Time Rate</span>
-            <span className="font-mono text-slate-400">₹{fare.perHourRate} / hr</span>
-          </div>
-
-          {fare.nightAllowance > 0 && (
-            <div className="flex justify-between text-xs text-amber-400">
-              <span>Night Travel Allowance (10 PM - 6 AM)</span>
-              <span className="font-mono">+₹{fare.nightAllowance}</span>
-            </div>
-          )}
-
-          {fare.tollEstimate > 0 && (
-            <div className="flex justify-between text-xs text-slate-300">
-              <span>Estimated Highway Tolls</span>
-              <span className="font-mono">+₹{fare.tollEstimate}</span>
-            </div>
-          )}
-
-          <div className="flex justify-between text-xs text-slate-300">
-            <span>GST & Service Taxes (5%)</span>
-            <span className="font-mono">+₹{fare.taxGst}</span>
-          </div>
-
-          {fare.discount > 0 && (
-            <div className="flex justify-between text-xs text-emerald-400">
-              <span className="flex items-center gap-1">
-                <Tag className="w-3.5 h-3.5" />
-                <span>AM to PM Welcome Privilege</span>
-              </span>
-              <span className="font-mono">-₹{fare.discount}</span>
-            </div>
-          )}
-
-          <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-sm font-bold">
-            <span className="text-slate-100">Total Net Fare</span>
-            <span className="text-amber-400 text-base font-mono">₹{fare.finalPayable}</span>
-          </div>
-        </div>
+        <FareBreakdownCard fare={fare} title="Estimated Price Breakdown" />
 
         {/* Payment Method Selector */}
         <div>
@@ -231,7 +180,7 @@ export const FarePreviewScreen: React.FC = () => {
       <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between shrink-0">
         <div>
           <span className="text-[10px] text-slate-400 uppercase font-semibold">Total Payable</span>
-          <div className="text-xl font-bold text-amber-400 font-mono">₹{fare.finalPayable}</div>
+          <div className="text-xl font-bold text-amber-400 font-mono">₹{formattedTotal}</div>
         </div>
 
         <button

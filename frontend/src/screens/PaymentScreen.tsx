@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { TopBar } from '../components/TopBar';
 import { apiService } from '../services/apiService';
 import { CreditCard, CheckCircle2, Smartphone, Banknote, ShieldCheck, ArrowRight, Star } from 'lucide-react';
+import { FareBreakdownCard } from '../components/FareBreakdownCard';
 
 export const PaymentScreen: React.FC = () => {
   const { activeBooking, setActiveBooking, navigateTo, showToast } = useApp();
@@ -19,6 +20,7 @@ export const PaymentScreen: React.FC = () => {
   }
 
   const amount = activeBooking.fare.finalPayable;
+  const formattedAmount = amount.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
   const handlePay = async () => {
     setIsProcessing(true);
@@ -58,7 +60,7 @@ export const PaymentScreen: React.FC = () => {
                 Transaction ID: <span className="font-mono text-emerald-400">{transactionId}</span>
               </p>
               <div className="text-3xl font-extrabold text-amber-400 font-mono mt-3">
-                ₹{amount}
+                ₹{formattedAmount}
               </div>
             </div>
 
@@ -82,9 +84,11 @@ export const PaymentScreen: React.FC = () => {
               </div>
               <div className="pt-2 border-t border-slate-800 flex justify-between font-bold text-sm">
                 <span>Amount Paid</span>
-                <span className="text-emerald-400 font-mono">₹{amount}</span>
+                <span className="text-emerald-400 font-mono">₹{formattedAmount}</span>
               </div>
             </div>
+
+            <FareBreakdownCard fare={activeBooking.fare} title="Paid Fare Breakdown" />
 
             {/* Driver Rating & Review */}
             <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-left space-y-3">
@@ -123,9 +127,11 @@ export const PaymentScreen: React.FC = () => {
             {/* Amount Banner */}
             <div className="bg-gradient-to-r from-amber-500/10 via-slate-900 to-indigo-500/10 p-5 rounded-2xl border border-amber-500/30 text-center">
               <span className="text-xs uppercase tracking-wider text-slate-400 font-semibold">Total Invoice Amount</span>
-              <div className="text-3xl font-extrabold text-amber-400 font-mono mt-1">₹{amount}</div>
+              <div className="text-3xl font-extrabold text-amber-400 font-mono mt-1">₹{formattedAmount}</div>
               <p className="text-[11px] text-slate-400 mt-1">All taxes, toll estimates & allowances included</p>
             </div>
+
+            <FareBreakdownCard fare={activeBooking.fare} title="Final Trip Fare" />
 
             {/* Gateway Methods */}
             <div className="space-y-2">
@@ -237,7 +243,7 @@ export const PaymentScreen: React.FC = () => {
               <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
             ) : (
               <>
-                <span>Authorize & Pay ₹{amount}</span>
+                <span>Authorize & Pay ₹{formattedAmount}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

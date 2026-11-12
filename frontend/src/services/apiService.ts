@@ -90,9 +90,11 @@ export const apiService = {
   calculateFare(
     rideType: RideType,
     category: VehicleCategory,
-    hours: number = 4,
-    distanceKm: number = 40,
-    isNightTime: boolean = false
+    packageHours: number = 4,
+    packageKm: number = 40,
+    tripStartTime: Date = new Date(),
+    actualHours: number = packageHours,
+    actualDistanceKm: number = packageKm
   ): FareBreakdown {
     // Dynamic rate card
     let baseRate = 499;
@@ -130,29 +132,59 @@ export const apiService = {
     }
 
     const baseFare = baseRate;
-    const distanceCharge = Math.max(0, distanceKm - 20) * perKm;
-    const timeCharge = Math.max(0, hours - 2) * perHour;
-    const nightAllowance = isNightTime ? 250 : 0;
+    const extraDistanceKm = Math.round(Math.max(0, actualDistanceKm - packageKm) * 100) / 100;
+    const extraHours = Math.round(Math.max(0, actualHours - packageHours) * 100) / 100;
+    const distanceCharge = Math.round(extraDistanceKm * perKm * 100) / 100;
+    const timeCharge = Math.round(extraHours * perHour * 100) / 100;
+    const nightAllowance = this.tripOverlapsNightWindow(tripStartTime, actualHours) ? 250 : 0;
     const tollEstimate = rideType === 'outstation' ? 180 : 0;
     
     const subtotal = baseFare + distanceCharge + timeCharge + nightAllowance + tollEstimate;
     const taxGst = Math.round(subtotal * 0.05); // 5% GST
     const discount = 50; // Welcome promotional discount
-    const finalPayable = subtotal + taxGst - discount;
+    const totalFare = Math.round((subtotal + taxGst) * 100) / 100;
+    const finalPayable = Math.round((subtotal + taxGst - discount) * 100) / 100;
 
     return {
       baseFare,
       perKmRate: perKm,
       perHourRate: perHour,
-      estimatedKm: distanceKm,
-      estimatedHours: hours,
+      estimatedKm: packageKm,
+      estimatedHours: packageHours,
+      extraDistanceKm,
+      extraHours,
+      distanceCharge,
+      timeCharge,
       nightAllowance,
       tollEstimate,
       taxGst,
-      totalFare: subtotal + taxGst,
+      totalFare,
       discount,
       finalPayable: Math.max(100, finalPayable),
     };
+  },
+
+  tripOverlapsNightWindow(tripStartTime: Date, durationHours: number): boolean {
+    const tripStartMs = tripStartTime.getTime();
+    if (!Number.isFinite(tripStartMs) || durationHours <= 0) return false;
+
+    const tripEndMs = tripStartMs + durationHours * 60 * 60 * 1000;
+    const nightStart = new Date(tripStartTime);
+    nightStart.setDate(nightStart.getDate() - 1);
+    nightStart.setHours(22, 0, 0, 0);
+
+    while (nightStart.getTime() < tripEndMs) {
+      const nightEnd = new Date(nightStart);
+      nightEnd.setDate(nightEnd.getDate() + 1);
+      nightEnd.setHours(6, 0, 0, 0);
+
+      if (tripStartMs < nightEnd.getTime() && tripEndMs > nightStart.getTime()) return true;
+
+      nightStart.setDate(nightStart.getDate() + 1);
+      nightStart.setHours(22, 0, 0, 0);
+    }
+
+    return false;
   },
 
   // =========================================================================
@@ -200,11 +232,47 @@ export const apiService = {
     if (idx === -1) return null;
 
     bookings[idx].status = status;
+    if (status === 'on_trip' && !bookings[idx].startedAt) {
+      bookings[idx].startedAt = new Date().toISOString();
+    }
     if (paymentStatus) bookings[idx].paymentStatus = paymentStatus;
     if (transactionId) bookings[idx].transactionId = transactionId;
 
     localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(bookings));
     return bookings[idx];
+  },
+
+  recordTripUsage(bookingId: string, actualDistanceKm: number, actualDurationHours: number): Booking | null {
+    if (
+      !Number.isFinite(actualDistanceKm) ||
+      actualDistanceKm < 0 ||
+      !Number.isFinite(actualDurationHours) ||
+      actualDurationHours <= 0
+    ) {
+      throw new Error('Enter valid actual trip distance and duration.');
+    }
+
+    const bookings = this.getLocalBookings();
+    const booking = bookings.find((item) => item.id === bookingId);
+    if (!booking || booking.status !== 'on_trip') return null;
+
+    const packageHours = booking.packageHours ?? booking.fare.estimatedHours;
+    const packageKm = booking.packageKm ?? booking.fare.estimatedKm;
+    const startedAt = booking.startedAt ? new Date(booking.startedAt) : new Date();
+    booking.actualDistanceKm = actualDistanceKm;
+    booking.actualDurationHours = actualDurationHours;
+    booking.fare = this.calculateFare(
+      booking.rideType,
+      booking.vehicleCategory,
+      packageHours,
+      packageKm,
+      startedAt,
+      actualDurationHours,
+      actualDistanceKm
+    );
+    booking.status = 'payment_pending';
+    localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(bookings));
+    return booking;
   },
 
   // =========================================================================

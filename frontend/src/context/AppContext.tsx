@@ -77,7 +77,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [pickupAddress, setPickupAddress] = useState<string>(
     'A-402, Sunset Heights, Pali Hill, Bandra West, Mumbai, PIN 400050'
   );
-  const [dropAddress, setDropAddress] = useState<string>('Chhatrapati Shivaji International Airport T2');
+  const [dropAddress, setDropAddress] = useState<string>('');
   const [stops, setStops] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<VehicleCategory>('Sedan');
   const [selectedTransmission, setSelectedTransmission] = useState<TransmissionType>('Automatic');
@@ -122,13 +122,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateEstimatedFare = () => {
-    const isNight = new Date().getHours() >= 22 || new Date().getHours() < 6;
+    const plannedStart = isAdvanceBooking && scheduledPickupTime
+      ? new Date(scheduledPickupTime)
+      : new Date();
     const fare = apiService.calculateFare(
       selectedRideType,
       selectedCategory,
       packageHours,
       packageKm,
-      isNight
+      plannedStart
     );
     setEstimatedFare(fare);
   };
@@ -136,6 +138,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const startBookingFlow = (type: RideType) => {
     setSelectedRideType(type);
     setStops([]);
+    setDropAddress('');
     setIsAdvanceBooking(false);
     setScheduledPickupTime('');
     if (type === 'drop') {
@@ -153,21 +156,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const confirmBooking = async (): Promise<Booking> => {
+    if (!pickupAddress.trim() || !dropAddress.trim()) {
+      throw new Error('Enter both pickup and drop-off locations.');
+    }
+
     const pickupDate = isAdvanceBooking ? new Date(scheduledPickupTime) : null;
     if (isAdvanceBooking && (!pickupDate || Number.isNaN(pickupDate.getTime()) || pickupDate.getTime() <= Date.now())) {
       throw new Error('Choose a future pickup date and time.');
     }
 
-    if (!estimatedFare) {
-      updateEstimatedFare();
-    }
-    const fare = estimatedFare || apiService.calculateFare(selectedRideType, selectedCategory, packageHours, packageKm);
+    const fare = apiService.calculateFare(
+      selectedRideType,
+      selectedCategory,
+      packageHours,
+      packageKm,
+      pickupDate ?? new Date()
+    );
+    setEstimatedFare(fare);
 
     const booking = await apiService.createBooking({
       rideType: selectedRideType,
       city: selectedCity,
       pickupAddress,
-      dropAddress: selectedRideType === 'drop' || selectedRideType === 'outstation' ? dropAddress : undefined,
+      dropAddress,
       stops: stops.length > 0 ? stops : undefined,
       scheduledTime: pickupDate ? pickupDate.toISOString() : IMMEDIATE_BOOKING_LABEL,
       packageHours,

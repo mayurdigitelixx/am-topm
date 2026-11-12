@@ -83,7 +83,7 @@ export const ConfigureRideScreen: React.FC = () => {
       return;
     }
 
-    if ((selectedRideType === 'drop' || selectedRideType === 'outstation') && !dropAddress.trim()) {
+    if (!dropAddress.trim()) {
       showToast('Enter a destination for this ride.');
       return;
     }
@@ -167,24 +167,22 @@ export const ConfigureRideScreen: React.FC = () => {
             </div>
           </div>
 
-          {(selectedRideType === 'drop' || selectedRideType === 'outstation') && (
-            <div>
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-                Destination Point
-              </label>
-              <div className="flex items-center gap-2 bg-slate-800 p-2.5 rounded-xl border border-slate-700">
-                <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
-                <input
-                  type="text"
-                  list="mumbai-area-suggestions"
-                  value={dropAddress}
-                  onChange={(e) => setDropAddress(e.target.value)}
-                  placeholder="Enter drop destination"
-                  className="w-full bg-transparent text-xs text-slate-100 focus:outline-none"
-                />
-              </div>
+          <div>
+            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+              Drop-off Point
+            </label>
+            <div className="flex items-center gap-2 bg-slate-800 p-2.5 rounded-xl border border-slate-700">
+              <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
+              <input
+                type="text"
+                list="mumbai-area-suggestions"
+                value={dropAddress}
+                onChange={(e) => setDropAddress(e.target.value)}
+                placeholder="Enter drop-off destination"
+                className="w-full bg-transparent text-xs text-slate-100 focus:outline-none"
+              />
             </div>
-          )}
+          </div>
 
           {(selectedRideType === 'drop' || selectedRideType === 'outstation') && (
             <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 space-y-3">

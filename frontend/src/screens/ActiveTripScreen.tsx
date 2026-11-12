@@ -5,10 +5,13 @@ import { apiService } from '../services/apiService';
 import { Phone, ShieldCheck, KeyRound, AlertTriangle, Car, ArrowRight, Sparkles } from 'lucide-react';
 import { formatScheduledPickup, getScheduledPickupDate, isBookingCancellable } from '../services/bookingUtils';
 
+type ActualUsage = { distanceKm: string; durationHours: string };
+
 export const ActiveTripScreen: React.FC = () => {
   const { activeBooking, setActiveBooking, navigateTo, showToast } = useApp();
   const [tripStep, setTripStep] = useState<'assigned' | 'arrived' | 'running' | 'ended'>('assigned');
   const [currentTime, setCurrentTime] = useState(0);
+  const [actualUsageByBooking, setActualUsageByBooking] = useState<Record<string, ActualUsage>>({});
 
   useEffect(() => {
     const initialUpdate = window.setTimeout(() => setCurrentTime(Date.now()), 0);
@@ -36,6 +39,10 @@ export const ActiveTripScreen: React.FC = () => {
   }
 
   const driver = activeBooking.driver;
+  const actualUsage = actualUsageByBooking[activeBooking.id] ?? {
+    distanceKm: String(activeBooking.packageKm ?? activeBooking.fare.estimatedKm),
+    durationHours: String(activeBooking.packageHours ?? activeBooking.fare.estimatedHours),
+  };
   const scheduledPickupDate = getScheduledPickupDate(activeBooking.scheduledTime);
   const isUpcomingScheduledTrip =
     activeBooking.status === 'driver_assigned' &&
@@ -44,21 +51,64 @@ export const ActiveTripScreen: React.FC = () => {
   const canCancelTrip = currentTime > 0 && isBookingCancellable(activeBooking, currentTime);
 
   const handleSimulateArrived = () => {
+    const updatedBooking = apiService.updateBookingStatus(activeBooking.id, 'driver_arrived');
+    if (!updatedBooking) {
+      showToast('Unable to update trip status. Please try again.');
+      return;
+    }
+
     setTripStep('arrived');
-    apiService.updateBookingStatus(activeBooking.id, 'driver_arrived');
+    setActiveBooking(updatedBooking);
     showToast('Driver has arrived at pickup location!');
   };
 
   const handleSimulateStartTrip = () => {
+    const updatedBooking = apiService.updateBookingStatus(activeBooking.id, 'on_trip');
+    if (!updatedBooking) {
+      showToast('Unable to start trip. Please try again.');
+      return;
+    }
+
     setTripStep('running');
-    apiService.updateBookingStatus(activeBooking.id, 'on_trip');
+    setActiveBooking(updatedBooking);
     showToast(`Trip Started with OTP: ${activeBooking.startOtp}`);
   };
 
   const handleSimulateEndTrip = () => {
+    const actualDistanceKm = Number(actualUsage.distanceKm);
+    const actualDurationHours = Number(actualUsage.durationHours);
+    if (
+      !actualUsage.distanceKm.trim() ||
+      !Number.isFinite(actualDistanceKm) ||
+      actualDistanceKm < 0 ||
+      !actualUsage.durationHours.trim() ||
+      !Number.isFinite(actualDurationHours) ||
+      actualDurationHours <= 0
+    ) {
+      showToast('Enter a valid actual distance and trip duration.');
+      return;
+    }
+
+    const completedBooking = apiService.recordTripUsage(
+      activeBooking.id,
+      actualDistanceKm,
+      actualDurationHours
+    );
+    if (!completedBooking) {
+      showToast('Unable to record trip usage. Please try again.');
+      return;
+    }
+
     setTripStep('ended');
-    apiService.updateBookingStatus(activeBooking.id, 'payment_pending');
+    setActiveBooking(completedBooking);
     showToast(`Trip Ended! End OTP: ${activeBooking.endOtp}`);
+  };
+
+  const updateActualUsage = (field: keyof ActualUsage, value: string) => {
+    setActualUsageByBooking((current) => ({
+      ...current,
+      [activeBooking.id]: { ...actualUsage, [field]: value },
+    }));
   };
 
   const handleProceedToPayment = () => {
@@ -125,17 +175,23 @@ export const ActiveTripScreen: React.FC = () => {
           )}
         </div>
 
-        {activeBooking.stops && activeBooking.stops.length > 0 && (
-          <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Planned Route Stops</div>
-            {activeBooking.stops.map((stop, index) => (
-              <div key={`${activeBooking.id}-stop-${index}`} className="flex items-start gap-2 text-xs">
-                <span className="text-amber-400 font-bold">{index + 1}.</span>
-                <span className="text-slate-200">{stop}</span>
-              </div>
-            ))}
+        <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Trip Route</div>
+          <div className="flex items-start gap-2 text-xs">
+            <span className="text-emerald-400 font-bold">Pickup</span>
+            <span className="text-slate-200">{activeBooking.pickupAddress}</span>
           </div>
-        )}
+          {activeBooking.stops?.map((stop, index) => (
+            <div key={`${activeBooking.id}-stop-${index}`} className="flex items-start gap-2 text-xs">
+              <span className="text-amber-400 font-bold">Stop {index + 1}</span>
+              <span className="text-slate-200">{stop}</span>
+            </div>
+          ))}
+          <div className="flex items-start gap-2 text-xs">
+            <span className="text-amber-400 font-bold">Drop-off</span>
+            <span className="text-slate-200">{activeBooking.dropAddress || 'Not recorded for this booking'}</span>
+          </div>
+        </div>
 
         {/* Dual OTP Security Box (Extracted from Reverse Engineering) */}
         {!isUpcomingScheduledTrip && (
@@ -242,12 +298,41 @@ export const ActiveTripScreen: React.FC = () => {
             )}
 
             {tripStep === 'running' && (
+              <>
+              <div className="grid grid-cols-2 gap-2 rounded-xl border border-slate-700 bg-slate-950/70 p-3">
+                <label className="text-[10px] font-semibold text-slate-400">
+                  Actual distance (km)
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={actualUsage.distanceKm}
+                    onChange={(event) => updateActualUsage('distanceKm', event.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-2 text-xs text-slate-100 focus:border-amber-400 focus:outline-none"
+                  />
+                </label>
+                <label className="text-[10px] font-semibold text-slate-400">
+                  Actual duration (hours)
+                  <input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={actualUsage.durationHours}
+                    onChange={(event) => updateActualUsage('durationHours', event.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-2 text-xs text-slate-100 focus:border-amber-400 focus:outline-none"
+                  />
+                </label>
+                <p className="col-span-2 text-[10px] text-slate-500">
+                  Extra rates apply only to actual usage beyond the booked package.
+                </p>
+              </div>
               <button
                 onClick={handleSimulateEndTrip}
                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2 px-3 rounded-xl transition"
               >
-                3. Simulate "Driver Enters End OTP ({activeBooking.endOtp})"
+                3. Record Usage & Finish Trip ({activeBooking.endOtp})
               </button>
+              </>
             )}
           </div>
         </div>
@@ -291,7 +376,9 @@ export const ActiveTripScreen: React.FC = () => {
             onClick={handleProceedToPayment}
             className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-bold py-3.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition"
           >
-            <span>Proceed to Settlement (₹{activeBooking.fare.finalPayable})</span>
+            <span>
+              Proceed to Settlement (₹{activeBooking.fare.finalPayable.toLocaleString('en-IN', { maximumFractionDigits: 2 })})
+            </span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

@@ -74,14 +74,14 @@ export const RidesHistoryScreen: React.FC = () => {
                   </span>
                 </div>
                 <span className="text-xs font-bold text-amber-400 font-mono">
-                  ₹{booking.fare.finalPayable}
+                  ₹{booking.fare.finalPayable.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                 </span>
               </div>
 
               <div className="text-xs text-slate-300 space-y-1">
                 <div className="flex items-center gap-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  <span className="truncate">{booking.pickupAddress}</span>
+                  <span className="truncate">Pickup: {booking.pickupAddress}</span>
                 </div>
                 {booking.stops?.map((stop, index) => (
                   <div key={`${booking.id}-stop-${index}`} className="flex items-center gap-2">
@@ -89,12 +89,10 @@ export const RidesHistoryScreen: React.FC = () => {
                     <span className="truncate">Stop {index + 1}: {stop}</span>
                   </div>
                 ))}
-                {booking.dropAddress && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                    <span className="truncate">{booking.dropAddress}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <span className="truncate">Drop-off: {booking.dropAddress || 'Not recorded for this booking'}</span>
+                </div>
               </div>
 
               <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">

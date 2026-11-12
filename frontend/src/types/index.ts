@@ -73,6 +73,10 @@ export interface FareBreakdown {
   perHourRate: number;
   estimatedKm: number;
   estimatedHours: number;
+  extraDistanceKm?: number;
+  extraHours?: number;
+  distanceCharge?: number;
+  timeCharge?: number;
   nightAllowance: number;
   tollEstimate: number;
   taxGst: number;
@@ -98,11 +102,14 @@ export interface Booking {
   rideType: RideType;
   city: string;
   pickupAddress: string;
-  dropAddress?: string;
+  dropAddress: string;
   stops?: string[];
   scheduledTime: string;
   packageHours?: number;
   packageKm?: number;
+  startedAt?: string;
+  actualDistanceKm?: number;
+  actualDurationHours?: number;
   vehicleCategory: VehicleCategory;
   transmission: TransmissionType;
   isCustomerCar: boolean;
