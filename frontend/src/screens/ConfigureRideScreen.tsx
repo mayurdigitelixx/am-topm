@@ -6,8 +6,8 @@ import { MapPin, ChevronRight, Check } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { INITIAL_LOCALITIES } from '../services/mockData';
 
-const MUMBAI_AREA_SUGGESTIONS = INITIAL_LOCALITIES
-  .filter((locality) => locality.cityId === 'c1')
+const MUMBAI_LOCALITIES = INITIAL_LOCALITIES.filter((locality) => locality.cityId === 'c1');
+const MUMBAI_AREA_SUGGESTIONS = MUMBAI_LOCALITIES
   .map((locality) => `${locality.name}, Mumbai - PIN ${locality.pincode}`);
 
 export const ConfigureRideScreen: React.FC = () => {
@@ -33,6 +33,7 @@ export const ConfigureRideScreen: React.FC = () => {
   } = useApp();
 
   const customerCars = apiService.getCustomerCars();
+  const selectedPickupAreaId = MUMBAI_LOCALITIES.find((locality) => pickupAddress.includes(locality.name))?.id ?? '';
 
   const categories: { id: VehicleCategory; name: string; subtitle: string; icon: string }[] = [
     { id: 'Hatchback', name: 'Hatchback', subtitle: 'WagonR, Swift, i10', icon: '🚗' },
@@ -63,6 +64,30 @@ export const ConfigureRideScreen: React.FC = () => {
             <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
               Pickup Point
             </label>
+            <label
+              htmlFor="pickup-area"
+              className="text-[10px] font-semibold text-slate-500 block mb-1"
+            >
+              Mumbai area and PIN code
+            </label>
+            <select
+              id="pickup-area"
+              value={selectedPickupAreaId}
+              onChange={(event) => {
+                const locality = MUMBAI_LOCALITIES.find((item) => item.id === event.target.value);
+                setPickupAddress(
+                  locality ? `${locality.name}, Mumbai - PIN ${locality.pincode}` : ''
+                );
+              }}
+              className="w-full bg-slate-800 border border-slate-700 px-3 py-2.5 rounded-xl text-xs text-slate-100 focus:outline-none mb-2"
+            >
+              <option value="">Select a Mumbai area and PIN code</option>
+              {MUMBAI_LOCALITIES.map((locality) => (
+                <option key={locality.id} value={locality.id}>
+                  {locality.name} - PIN {locality.pincode}
+                </option>
+              ))}
+            </select>
             <div className="flex items-center gap-2 bg-slate-800 p-2.5 rounded-xl border border-slate-700">
               <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
               <input

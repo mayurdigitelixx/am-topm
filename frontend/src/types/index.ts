@@ -61,6 +61,7 @@ export interface SavedAddress {
   addressLine: string;
   locality: string;
   city: string;
+  pincode: string;
   latitude: number;
   longitude: number;
   isDefault: boolean;

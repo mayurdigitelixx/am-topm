@@ -1,11 +1,12 @@
 import { API_CONFIG } from '../config/api.config';
-import type { Booking, CustomerCar, FareBreakdown, RideType, SupportTicket, User, VehicleCategory } from '../types';
-import { INITIAL_CUSTOMER_CARS, MOCK_DRIVERS } from './mockData';
+import type { Booking, CustomerCar, FareBreakdown, RideType, SavedAddress, SupportTicket, User, VehicleCategory } from '../types';
+import { INITIAL_CUSTOMER_CARS, INITIAL_LOCALITIES, INITIAL_SAVED_ADDRESSES, MOCK_DRIVERS } from './mockData';
 
 // Local Storage Keys
 const STORAGE_USER_KEY = 'am_to_pm_user_session';
 const STORAGE_BOOKINGS_KEY = 'am_to_pm_bookings';
 const STORAGE_CARS_KEY = 'am_to_pm_customer_cars';
+const STORAGE_ADDRESSES_KEY = 'am_to_pm_saved_addresses';
 const STORAGE_TICKETS_KEY = 'am_to_pm_tickets';
 
 // Simulated delay helper
@@ -227,6 +228,32 @@ export const apiService = {
       transactionId,
       receiptUrl: `#receipt-${transactionId}`,
     };
+  },
+
+  getSavedAddresses(): SavedAddress[] {
+    const raw = localStorage.getItem(STORAGE_ADDRESSES_KEY);
+    const addresses: SavedAddress[] = raw ? JSON.parse(raw) : INITIAL_SAVED_ADDRESSES;
+
+    return addresses.map((address) => ({
+      ...address,
+      pincode: address.pincode || INITIAL_LOCALITIES.find(
+        (locality) => locality.cityId === 'c1' && locality.name === address.locality
+      )?.pincode || '',
+    }));
+  },
+
+  saveSavedAddress(address: SavedAddress): SavedAddress {
+    const addresses = this.getSavedAddresses();
+    const existingIndex = addresses.findIndex((savedAddress) => savedAddress.id === address.id);
+
+    if (existingIndex === -1) {
+      addresses.push(address);
+    } else {
+      addresses[existingIndex] = address;
+    }
+
+    localStorage.setItem(STORAGE_ADDRESSES_KEY, JSON.stringify(addresses));
+    return address;
   },
 
   // =========================================================================
