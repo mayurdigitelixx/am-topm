@@ -4,6 +4,11 @@ import { TopBar } from '../components/TopBar';
 import type { VehicleCategory, TransmissionType } from '../types';
 import { MapPin, ChevronRight, Check } from 'lucide-react';
 import { apiService } from '../services/apiService';
+import { INITIAL_LOCALITIES } from '../services/mockData';
+
+const MUMBAI_AREA_SUGGESTIONS = INITIAL_LOCALITIES
+  .filter((locality) => locality.cityId === 'c1')
+  .map((locality) => `${locality.name}, Mumbai - PIN ${locality.pincode}`);
 
 export const ConfigureRideScreen: React.FC = () => {
   const {
@@ -62,6 +67,7 @@ export const ConfigureRideScreen: React.FC = () => {
               <MapPin className="w-4 h-4 text-emerald-400 shrink-0" />
               <input
                 type="text"
+                list="mumbai-area-suggestions"
                 value={pickupAddress}
                 onChange={(e) => setPickupAddress(e.target.value)}
                 placeholder="Enter pickup address"
@@ -79,6 +85,7 @@ export const ConfigureRideScreen: React.FC = () => {
                 <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
                 <input
                   type="text"
+                  list="mumbai-area-suggestions"
                   value={dropAddress}
                   onChange={(e) => setDropAddress(e.target.value)}
                   placeholder="Enter drop destination"
@@ -87,6 +94,11 @@ export const ConfigureRideScreen: React.FC = () => {
               </div>
             </div>
           )}
+          <datalist id="mumbai-area-suggestions">
+            {MUMBAI_AREA_SUGGESTIONS.map((area) => (
+              <option key={area} value={area} />
+            ))}
+          </datalist>
         </div>
 
         {/* Car Option: Customer Car vs Chauffeur + Vehicle */}
