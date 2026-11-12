@@ -74,6 +74,18 @@ export const ActiveTripScreen: React.FC = () => {
           </p>
         </div>
 
+        {activeBooking.stops && activeBooking.stops.length > 0 && (
+          <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 space-y-2">
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Planned Route Stops</div>
+            {activeBooking.stops.map((stop, index) => (
+              <div key={`${activeBooking.id}-stop-${index}`} className="flex items-start gap-2 text-xs">
+                <span className="text-amber-400 font-bold">{index + 1}.</span>
+                <span className="text-slate-200">{stop}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Dual OTP Security Box (Extracted from Reverse Engineering) */}
         <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-indigo-950/40 p-4 rounded-2xl border border-amber-500/40 shadow-lg">
           <div className="flex items-center justify-between mb-3">

@@ -99,6 +99,7 @@ export interface Booking {
   city: string;
   pickupAddress: string;
   dropAddress?: string;
+  stops?: string[];
   scheduledTime: string;
   packageHours?: number;
   packageKm?: number;

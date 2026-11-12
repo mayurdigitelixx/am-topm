@@ -1,14 +1,20 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { TopBar } from '../components/TopBar';
-import type { VehicleCategory, TransmissionType } from '../types';
-import { MapPin, ChevronRight, Check } from 'lucide-react';
+import type { SavedAddress, VehicleCategory, TransmissionType } from '../types';
+import { MapPin, ChevronRight, Check, X } from 'lucide-react';
 import { apiService } from '../services/apiService';
 import { INITIAL_LOCALITIES } from '../services/mockData';
 
 const MUMBAI_LOCALITIES = INITIAL_LOCALITIES.filter((locality) => locality.cityId === 'c1');
 const MUMBAI_AREA_SUGGESTIONS = MUMBAI_LOCALITIES
   .map((locality) => `${locality.name}, Mumbai - PIN ${locality.pincode}`);
+const MAX_ROUTE_STOPS = 3;
+
+const formatSavedAddress = (address: SavedAddress) =>
+  [address.addressLine, address.locality, address.city, address.pincode ? `PIN ${address.pincode}` : '']
+    .filter(Boolean)
+    .join(', ');
 
 export const ConfigureRideScreen: React.FC = () => {
   const {
@@ -17,6 +23,8 @@ export const ConfigureRideScreen: React.FC = () => {
     setPickupAddress,
     dropAddress,
     setDropAddress,
+    stops,
+    setStops,
     selectedCategory,
     setSelectedCategory,
     selectedTransmission,
@@ -30,9 +38,14 @@ export const ConfigureRideScreen: React.FC = () => {
     setSelectedCarId,
     updateEstimatedFare,
     navigateTo,
+    showToast,
   } = useApp();
 
   const customerCars = apiService.getCustomerCars();
+  const savedAddresses = apiService.getSavedAddresses();
+  const selectedSavedAddressId = savedAddresses.find(
+    (address) => formatSavedAddress(address) === pickupAddress
+  )?.id ?? '';
   const selectedPickupAreaId = MUMBAI_LOCALITIES.find((locality) => pickupAddress.includes(locality.name))?.id ?? '';
 
   const categories: { id: VehicleCategory; name: string; subtitle: string; icon: string }[] = [
@@ -49,6 +62,21 @@ export const ConfigureRideScreen: React.FC = () => {
   ];
 
   const handleProceedToPreview = () => {
+    if (!pickupAddress.trim()) {
+      showToast('Choose a saved pickup address or enter a new location.');
+      return;
+    }
+
+    if ((selectedRideType === 'drop' || selectedRideType === 'outstation') && !dropAddress.trim()) {
+      showToast('Enter a destination for this ride.');
+      return;
+    }
+
+    if (stops.some((stop) => !stop.trim())) {
+      showToast('Enter an address for each stop or remove the empty stop.');
+      return;
+    }
+
     updateEstimatedFare();
     navigateTo('preview_fare');
   };
@@ -64,6 +92,28 @@ export const ConfigureRideScreen: React.FC = () => {
             <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
               Pickup Point
             </label>
+            <label
+              htmlFor="saved-pickup-address"
+              className="text-[10px] font-semibold text-slate-500 block mb-1"
+            >
+              Saved address or new location
+            </label>
+            <select
+              id="saved-pickup-address"
+              value={selectedSavedAddressId}
+              onChange={(event) => {
+                const address = savedAddresses.find((item) => item.id === event.target.value);
+                setPickupAddress(address ? formatSavedAddress(address) : '');
+              }}
+              className="w-full bg-slate-800 border border-slate-700 px-3 py-2.5 rounded-xl text-xs text-slate-100 focus:outline-none mb-2"
+            >
+              <option value="">Enter a new pickup location</option>
+              {savedAddresses.map((address) => (
+                <option key={address.id} value={address.id}>
+                  {address.title} - {formatSavedAddress(address)}
+                </option>
+              ))}
+            </select>
             <label
               htmlFor="pickup-area"
               className="text-[10px] font-semibold text-slate-500 block mb-1"
@@ -117,6 +167,90 @@ export const ConfigureRideScreen: React.FC = () => {
                   className="w-full bg-transparent text-xs text-slate-100 focus:outline-none"
                 />
               </div>
+            </div>
+          )}
+
+          {(selectedRideType === 'drop' || selectedRideType === 'outstation') && (
+            <div className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 space-y-3">
+              <div>
+                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                  Route plan
+                </div>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Choose a direct trip or add up to {MAX_ROUTE_STOPS} stops before the drop-off.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setStops([])}
+                  aria-pressed={stops.length === 0}
+                  className={`rounded-xl border px-2 py-2.5 text-[10px] font-bold transition ${
+                    stops.length === 0
+                      ? 'border-amber-400 bg-amber-400/10 text-amber-300'
+                      : 'border-slate-700 bg-slate-900 text-slate-400'
+                  }`}
+                >
+                  Direct pickup and drop
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (stops.length === 0) setStops(['']);
+                  }}
+                  aria-pressed={stops.length > 0}
+                  className={`rounded-xl border px-2 py-2.5 text-[10px] font-bold transition ${
+                    stops.length > 0
+                      ? 'border-amber-400 bg-amber-400/10 text-amber-300'
+                      : 'border-slate-700 bg-slate-900 text-slate-400'
+                  }`}
+                >
+                  Add route stops
+                </button>
+              </div>
+              {stops.map((stop, index) => (
+                <div key={`route-stop-${index}`} className="space-y-1">
+                  <label
+                    htmlFor={`route-stop-${index}`}
+                    className="text-[10px] font-semibold text-slate-400"
+                  >
+                    Stop {index + 1}
+                  </label>
+                  <div className="flex items-center gap-2 bg-slate-800 p-2.5 rounded-xl border border-slate-700">
+                    <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
+                    <input
+                      id={`route-stop-${index}`}
+                      type="text"
+                      list="mumbai-area-suggestions"
+                      value={stop}
+                      onChange={(event) =>
+                        setStops(stops.map((currentStop, stopIndex) =>
+                          stopIndex === index ? event.target.value : currentStop
+                        ))
+                      }
+                      placeholder="Enter stop location"
+                      className="w-full bg-transparent text-xs text-slate-100 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setStops(stops.filter((_, stopIndex) => stopIndex !== index))}
+                      aria-label={`Remove stop ${index + 1}`}
+                      className="text-slate-500 hover:text-red-400"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {stops.length > 0 && stops.length < MAX_ROUTE_STOPS && (
+                <button
+                  type="button"
+                  onClick={() => setStops([...stops, ''])}
+                  className="w-full rounded-xl border border-dashed border-slate-700 px-3 py-2 text-[10px] font-bold text-amber-400"
+                >
+                  + Add another stop ({stops.length}/{MAX_ROUTE_STOPS})
+                </button>
+              )}
             </div>
           )}
           <datalist id="mumbai-area-suggestions">

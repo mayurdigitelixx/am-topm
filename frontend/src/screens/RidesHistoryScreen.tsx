@@ -61,6 +61,12 @@ export const RidesHistoryScreen: React.FC = () => {
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   <span className="truncate">{booking.pickupAddress}</span>
                 </div>
+                {booking.stops?.map((stop, index) => (
+                  <div key={`${booking.id}-stop-${index}`} className="flex items-center gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-amber-300" />
+                    <span className="truncate">Stop {index + 1}: {stop}</span>
+                  </div>
+                ))}
                 {booking.dropAddress && (
                   <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />

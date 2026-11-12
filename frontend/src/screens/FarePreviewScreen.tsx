@@ -9,6 +9,7 @@ export const FarePreviewScreen: React.FC = () => {
     selectedRideType,
     pickupAddress,
     dropAddress,
+    stops,
     selectedCategory,
     selectedTransmission,
     packageHours,
@@ -71,6 +72,16 @@ export const FarePreviewScreen: React.FC = () => {
                 <span className="text-slate-200 font-medium">{pickupAddress}</span>
               </div>
             </div>
+
+            {stops.map((stop, index) => (
+              <div key={`preview-stop-${index}`} className="flex items-start gap-2">
+                <div className="w-2 h-2 rounded-full bg-amber-300 mt-1.5 shrink-0" />
+                <div>
+                  <span className="text-slate-400 text-[10px] block">Stop {index + 1}</span>
+                  <span className="text-slate-200 font-medium">{stop}</span>
+                </div>
+              </div>
+            ))}
 
             {dropAddress && (selectedRideType === 'drop' || selectedRideType === 'outstation') && (
               <div className="flex items-start gap-2">

@@ -26,6 +26,7 @@ interface AppContextType {
   selectedCity: string;
   pickupAddress: string;
   dropAddress: string;
+  stops: string[];
   selectedCategory: VehicleCategory;
   selectedTransmission: TransmissionType;
   packageHours: number;
@@ -43,6 +44,7 @@ interface AppContextType {
   setSelectedCity: (city: string) => void;
   setPickupAddress: (addr: string) => void;
   setDropAddress: (addr: string) => void;
+  setStops: (stops: string[]) => void;
   setSelectedCategory: (cat: VehicleCategory) => void;
   setSelectedTransmission: (trans: TransmissionType) => void;
   setPackageHours: (hrs: number) => void;
@@ -67,8 +69,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Booking Builder
   const [selectedRideType, setSelectedRideType] = useState<RideType>('local');
   const [selectedCity, setSelectedCity] = useState<string>('Mumbai');
-  const [pickupAddress, setPickupAddress] = useState<string>('Bandra West, Mumbai');
+  const [pickupAddress, setPickupAddress] = useState<string>(
+    'A-402, Sunset Heights, Pali Hill, Bandra West, Mumbai, PIN 400050'
+  );
   const [dropAddress, setDropAddress] = useState<string>('Chhatrapati Shivaji International Airport T2');
+  const [stops, setStops] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<VehicleCategory>('Sedan');
   const [selectedTransmission, setSelectedTransmission] = useState<TransmissionType>('Automatic');
   const [packageHours, setPackageHours] = useState<number>(4);
@@ -123,6 +128,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const startBookingFlow = (type: RideType) => {
     setSelectedRideType(type);
+    setStops([]);
     if (type === 'drop') {
       setPackageHours(2);
       setPackageKm(25);
@@ -148,6 +154,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       city: selectedCity,
       pickupAddress,
       dropAddress: selectedRideType === 'drop' || selectedRideType === 'outstation' ? dropAddress : undefined,
+      stops: stops.length > 0 ? stops : undefined,
       scheduledTime: 'Immediate (Within 15 mins)',
       packageHours,
       packageKm,
@@ -183,6 +190,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         selectedCity,
         pickupAddress,
         dropAddress,
+        stops,
         selectedCategory,
         selectedTransmission,
         packageHours,
@@ -199,6 +207,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedCity,
         setPickupAddress,
         setDropAddress,
+        setStops,
         setSelectedCategory,
         setSelectedTransmission,
         setPackageHours,
