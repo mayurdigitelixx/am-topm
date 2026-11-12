@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TopBar } from '../components/TopBar';
 import { BottomNav } from '../components/BottomNav';
-import { ShieldCheck, LogOut, ChevronRight, Sparkles } from 'lucide-react';
+import { ShieldCheck, LogOut, ChevronRight, ChevronDown, Sparkles } from 'lucide-react';
 import type { SavedAddress } from '../types';
 import { apiService } from '../services/apiService';
 import { INITIAL_LOCALITIES } from '../services/mockData';
@@ -12,6 +12,7 @@ const MUMBAI_LOCALITIES = INITIAL_LOCALITIES.filter((locality) => locality.cityI
 export const ProfileScreen: React.FC = () => {
   const { user, logout, navigateTo, showToast } = useApp();
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>(() => apiService.getSavedAddresses());
+  const [expandedAddressId, setExpandedAddressId] = useState<string | null>(null);
 
   const updateSavedAddress = (id: string, updates: Partial<SavedAddress>) => {
     setSavedAddresses((current) =>
@@ -20,10 +21,11 @@ export const ProfileScreen: React.FC = () => {
   };
 
   const addSavedAddress = () => {
+    const id = `address_${Date.now().toString(36)}`;
     setSavedAddresses((current) => [
       ...current,
       {
-        id: `address_${Date.now().toString(36)}`,
+        id,
         title: 'New Address',
         addressLine: '',
         locality: '',
@@ -34,6 +36,7 @@ export const ProfileScreen: React.FC = () => {
         isDefault: false,
       },
     ]);
+    setExpandedAddressId(id);
   };
 
   const saveAddress = (address: SavedAddress) => {
@@ -85,67 +88,88 @@ export const ProfileScreen: React.FC = () => {
           </div>
 
           {savedAddresses.map((address) => (
-            <div key={address.id} className="rounded-xl border border-slate-800 bg-slate-950/60 p-3 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-200">{address.title}</span>
-                {address.isDefault && <span className="text-[10px] text-emerald-400">Default</span>}
-              </div>
-
-              <label className="block text-[10px] font-semibold text-slate-400">
-                Street address
-                <input
-                  type="text"
-                  value={address.addressLine}
-                  onChange={(event) => updateSavedAddress(address.id, { addressLine: event.target.value })}
-                  placeholder="Flat, building, street"
-                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-xs text-slate-100 focus:border-amber-400 focus:outline-none"
-                />
-              </label>
-
-              <label className="block text-[10px] font-semibold text-slate-400">
-                Mumbai area
-                <select
-                  value={address.locality}
-                  onChange={(event) => {
-                    const locality = MUMBAI_LOCALITIES.find((item) => item.name === event.target.value);
-                    updateSavedAddress(address.id, {
-                      locality: event.target.value,
-                      pincode: locality?.pincode ?? address.pincode,
-                    });
-                  }}
-                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-xs text-slate-100 focus:border-amber-400 focus:outline-none"
-                >
-                  <option value="">Choose area and PIN code</option>
-                  {MUMBAI_LOCALITIES.map((locality) => (
-                    <option key={locality.id} value={locality.name}>
-                      {locality.name} - PIN {locality.pincode}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block text-[10px] font-semibold text-slate-400">
-                PIN code
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={address.pincode}
-                  onChange={(event) =>
-                    updateSavedAddress(address.id, { pincode: event.target.value.replace(/\D/g, '').slice(0, 6) })
-                  }
-                  placeholder="6-digit PIN code"
-                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-xs text-slate-100 focus:border-amber-400 focus:outline-none"
-                />
-              </label>
-
+            <div key={address.id} className="rounded-xl border border-slate-800 bg-slate-950/60">
               <button
                 type="button"
-                onClick={() => saveAddress(address)}
-                className="w-full rounded-xl bg-amber-400 px-3 py-2.5 text-xs font-bold text-slate-950"
+                aria-expanded={expandedAddressId === address.id}
+                aria-controls={`saved-address-${address.id}`}
+                onClick={() =>
+                  setExpandedAddressId((current) => (current === address.id ? null : address.id))
+                }
+                className="flex w-full items-center justify-between gap-3 p-3 text-left"
               >
-                Save Address
+                <span className="text-xs font-bold text-slate-200">{address.title}</span>
+                <span className="flex shrink-0 items-center gap-2">
+                  {address.isDefault && <span className="text-[10px] text-emerald-400">Default</span>}
+                  <ChevronDown
+                    className={`h-4 w-4 text-slate-500 transition-transform ${
+                      expandedAddressId === address.id ? 'rotate-180' : ''
+                    }`}
+                  />
+                </span>
               </button>
+
+              <div
+                id={`saved-address-${address.id}`}
+                hidden={expandedAddressId !== address.id}
+                className="space-y-3 border-t border-slate-800 p-3"
+              >
+                  <label className="block text-[10px] font-semibold text-slate-400">
+                    Street address
+                    <input
+                      type="text"
+                      value={address.addressLine}
+                      onChange={(event) => updateSavedAddress(address.id, { addressLine: event.target.value })}
+                      placeholder="Flat, building, street"
+                      className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-xs text-slate-100 focus:border-amber-400 focus:outline-none"
+                    />
+                  </label>
+
+                  <label className="block text-[10px] font-semibold text-slate-400">
+                    Mumbai area
+                    <select
+                      value={address.locality}
+                      onChange={(event) => {
+                        const locality = MUMBAI_LOCALITIES.find((item) => item.name === event.target.value);
+                        updateSavedAddress(address.id, {
+                          locality: event.target.value,
+                          pincode: locality?.pincode ?? address.pincode,
+                        });
+                      }}
+                      className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-xs text-slate-100 focus:border-amber-400 focus:outline-none"
+                    >
+                      <option value="">Choose area and PIN code</option>
+                      {MUMBAI_LOCALITIES.map((locality) => (
+                        <option key={locality.id} value={locality.name}>
+                          {locality.name} - PIN {locality.pincode}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="block text-[10px] font-semibold text-slate-400">
+                    PIN code
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={address.pincode}
+                      onChange={(event) =>
+                        updateSavedAddress(address.id, { pincode: event.target.value.replace(/\D/g, '').slice(0, 6) })
+                      }
+                      placeholder="6-digit PIN code"
+                      className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-xs text-slate-100 focus:border-amber-400 focus:outline-none"
+                    />
+                  </label>
+
+                  <button
+                    type="button"
+                    onClick={() => saveAddress(address)}
+                    className="w-full rounded-xl bg-amber-400 px-3 py-2.5 text-xs font-bold text-slate-950"
+                  >
+                    Save Address
+                  </button>
+              </div>
             </div>
           ))}
         </section>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TopBar } from '../components/TopBar';
 import type { SavedAddress, VehicleCategory, TransmissionType } from '../types';
@@ -16,6 +16,9 @@ const formatSavedAddress = (address: SavedAddress) =>
     .filter(Boolean)
     .join(', ');
 
+const toLocalDateTimeValue = (date: Date) =>
+  new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+
 export const ConfigureRideScreen: React.FC = () => {
   const {
     selectedRideType,
@@ -32,6 +35,10 @@ export const ConfigureRideScreen: React.FC = () => {
     packageHours,
     setPackageHours,
     setPackageKm,
+    isAdvanceBooking,
+    setIsAdvanceBooking,
+    scheduledPickupTime,
+    setScheduledPickupTime,
     isCustomerCar,
     setIsCustomerCar,
     selectedCarId,
@@ -43,6 +50,7 @@ export const ConfigureRideScreen: React.FC = () => {
 
   const customerCars = apiService.getCustomerCars();
   const savedAddresses = apiService.getSavedAddresses();
+  const [minimumPickupTime, setMinimumPickupTime] = useState('');
   const selectedSavedAddressId = savedAddresses.find(
     (address) => formatSavedAddress(address) === pickupAddress
   )?.id ?? '';
@@ -62,6 +70,14 @@ export const ConfigureRideScreen: React.FC = () => {
   ];
 
   const handleProceedToPreview = () => {
+    if (isAdvanceBooking) {
+      const pickupDate = new Date(scheduledPickupTime);
+      if (!scheduledPickupTime || Number.isNaN(pickupDate.getTime()) || pickupDate.getTime() <= Date.now()) {
+        showToast('Choose a future date and time for your scheduled pickup.');
+        return;
+      }
+    }
+
     if (!pickupAddress.trim()) {
       showToast('Choose a saved pickup address or enter a new location.');
       return;
@@ -259,6 +275,56 @@ export const ConfigureRideScreen: React.FC = () => {
             ))}
           </datalist>
         </div>
+
+        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4 space-y-3">
+          <div>
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Pickup Time</h2>
+            <p className="mt-1 text-[10px] text-slate-500">
+              Scheduled trips can be cancelled only more than 6 hours before pickup.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setIsAdvanceBooking(false)}
+              aria-pressed={!isAdvanceBooking}
+              className={`rounded-xl border px-3 py-2.5 text-[10px] font-bold transition ${
+                !isAdvanceBooking
+                  ? 'border-amber-400 bg-amber-400/10 text-amber-300'
+                  : 'border-slate-700 bg-slate-950 text-slate-400'
+              }`}
+            >
+              Book for now
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMinimumPickupTime(toLocalDateTimeValue(new Date(Date.now() + 60_000)));
+                setIsAdvanceBooking(true);
+              }}
+              aria-pressed={isAdvanceBooking}
+              className={`rounded-xl border px-3 py-2.5 text-[10px] font-bold transition ${
+                isAdvanceBooking
+                  ? 'border-amber-400 bg-amber-400/10 text-amber-300'
+                  : 'border-slate-700 bg-slate-950 text-slate-400'
+              }`}
+            >
+              Schedule pickup
+            </button>
+          </div>
+          {isAdvanceBooking && (
+            <label className="block text-[10px] font-semibold text-slate-400">
+              Pickup date and time
+              <input
+                type="datetime-local"
+                min={minimumPickupTime}
+                value={scheduledPickupTime}
+                onChange={(event) => setScheduledPickupTime(event.target.value)}
+                className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-xs text-slate-100 focus:border-amber-400 focus:outline-none"
+              />
+            </label>
+          )}
+        </section>
 
         {/* Car Option: Customer Car vs Chauffeur + Vehicle */}
         <div>

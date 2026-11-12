@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { TopBar } from '../components/TopBar';
 import { Clock, Car, CreditCard, ChevronRight, Tag, Info, Banknote } from 'lucide-react';
 import type { PaymentMethod } from '../types';
+import { formatScheduledPickup, IMMEDIATE_BOOKING_LABEL } from '../services/bookingUtils';
 
 export const FarePreviewScreen: React.FC = () => {
   const { 
@@ -14,6 +15,8 @@ export const FarePreviewScreen: React.FC = () => {
     selectedTransmission,
     packageHours,
     packageKm,
+    isAdvanceBooking,
+    scheduledPickupTime,
     isCustomerCar,
     estimatedFare,
     confirmBooking,
@@ -65,6 +68,17 @@ export const FarePreviewScreen: React.FC = () => {
           </div>
 
           <div className="space-y-2 text-xs">
+            <div className="flex items-start gap-2">
+              <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500" />
+              <div>
+                <span className="block text-[10px] text-slate-400">Pickup time</span>
+                <span className="font-medium text-slate-200">
+                  {isAdvanceBooking
+                    ? formatScheduledPickup(new Date(scheduledPickupTime).toISOString())
+                    : IMMEDIATE_BOOKING_LABEL}
+                </span>
+              </div>
+            </div>
             <div className="flex items-start gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
               <div>

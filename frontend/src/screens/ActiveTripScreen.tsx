@@ -1,12 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { TopBar } from '../components/TopBar';
 import { apiService } from '../services/apiService';
 import { Phone, ShieldCheck, KeyRound, AlertTriangle, Car, ArrowRight, Sparkles } from 'lucide-react';
+import { formatScheduledPickup, getScheduledPickupDate, isBookingCancellable } from '../services/bookingUtils';
 
 export const ActiveTripScreen: React.FC = () => {
-  const { activeBooking, navigateTo, showToast } = useApp();
+  const { activeBooking, setActiveBooking, navigateTo, showToast } = useApp();
   const [tripStep, setTripStep] = useState<'assigned' | 'arrived' | 'running' | 'ended'>('assigned');
+  const [currentTime, setCurrentTime] = useState(0);
+
+  useEffect(() => {
+    const initialUpdate = window.setTimeout(() => setCurrentTime(Date.now()), 0);
+    const interval = window.setInterval(() => setCurrentTime(Date.now()), 30_000);
+    return () => {
+      window.clearTimeout(initialUpdate);
+      window.clearInterval(interval);
+    };
+  }, []);
 
   if (!activeBooking) {
     return (
@@ -25,6 +36,12 @@ export const ActiveTripScreen: React.FC = () => {
   }
 
   const driver = activeBooking.driver;
+  const scheduledPickupDate = getScheduledPickupDate(activeBooking.scheduledTime);
+  const isUpcomingScheduledTrip =
+    activeBooking.status === 'driver_assigned' &&
+    scheduledPickupDate !== null &&
+    (currentTime === 0 || scheduledPickupDate.getTime() > currentTime);
+  const canCancelTrip = currentTime > 0 && isBookingCancellable(activeBooking, currentTime);
 
   const handleSimulateArrived = () => {
     setTripStep('arrived');
@@ -48,6 +65,25 @@ export const ActiveTripScreen: React.FC = () => {
     navigateTo('payment');
   };
 
+  const handleCancelTrip = () => {
+    if (!isBookingCancellable(activeBooking)) {
+      showToast('This trip can no longer be cancelled from the app.');
+      return;
+    }
+
+    if (!window.confirm('Cancel this scheduled trip? This action cannot be undone.')) return;
+
+    const cancelledBooking = apiService.updateBookingStatus(activeBooking.id, 'cancelled');
+    if (!cancelledBooking) {
+      showToast('Unable to cancel this trip. Please try again.');
+      return;
+    }
+
+    setActiveBooking(null);
+    showToast('Scheduled trip cancelled.');
+    navigateTo('rides');
+  };
+
   return (
     <div className="flex-1 flex flex-col justify-between bg-slate-950 text-slate-100">
       <TopBar title={`Trip Status • ${activeBooking.id}`} showBack onBack={() => navigateTo('dashboard')} />
@@ -55,6 +91,19 @@ export const ActiveTripScreen: React.FC = () => {
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {/* Status Step Header */}
         <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 text-center">
+          {isUpcomingScheduledTrip ? (
+            <>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase mb-2 bg-blue-400/10 text-blue-300 border border-blue-400/30">
+                Scheduled Ride
+              </div>
+              <h2 className="text-lg font-bold text-slate-100">Pickup is scheduled</h2>
+              <p className="mt-1 text-xs text-slate-300">{formatScheduledPickup(activeBooking.scheduledTime)}</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Booking ID: <span className="font-mono text-slate-300">{activeBooking.id}</span>
+              </p>
+            </>
+          ) : (
+            <>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase mb-2 bg-amber-400/10 text-amber-300 border border-amber-400/30">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
             {tripStep === 'assigned' && 'Chauffeur On the Way'}
@@ -72,6 +121,8 @@ export const ActiveTripScreen: React.FC = () => {
           <p className="text-xs text-slate-400 mt-0.5">
             Booking ID: <span className="font-mono text-slate-300">{activeBooking.id}</span>
           </p>
+            </>
+          )}
         </div>
 
         {activeBooking.stops && activeBooking.stops.length > 0 && (
@@ -87,6 +138,7 @@ export const ActiveTripScreen: React.FC = () => {
         )}
 
         {/* Dual OTP Security Box (Extracted from Reverse Engineering) */}
+        {!isUpcomingScheduledTrip && (
         <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-indigo-950/40 p-4 rounded-2xl border border-amber-500/40 shadow-lg">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400 uppercase tracking-wider">
@@ -116,6 +168,7 @@ export const ActiveTripScreen: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
 
         {/* Driver Profile Card */}
         {driver && (
@@ -162,6 +215,7 @@ export const ActiveTripScreen: React.FC = () => {
         )}
 
         {/* Interactive Prototype Progression Controls */}
+        {!isUpcomingScheduledTrip && (
         <div className="p-3.5 bg-slate-900/60 rounded-2xl border border-slate-800 space-y-2">
           <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -197,6 +251,7 @@ export const ActiveTripScreen: React.FC = () => {
             )}
           </div>
         </div>
+        )}
 
         {/* SOS Emergency Helpline */}
         <div className="flex items-center justify-between p-3 bg-red-950/20 border border-red-900/40 rounded-xl text-xs text-red-300">
@@ -214,7 +269,23 @@ export const ActiveTripScreen: React.FC = () => {
       </div>
 
       {/* Bottom Action Footer */}
-      {tripStep === 'ended' ? (
+      {isUpcomingScheduledTrip ? (
+        <div className="p-4 bg-slate-900 border-t border-slate-800 shrink-0">
+          {canCancelTrip ? (
+            <button
+              type="button"
+              onClick={handleCancelTrip}
+              className="w-full rounded-xl border border-red-500/50 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-300 transition hover:bg-red-500/20"
+            >
+              Cancel Scheduled Trip
+            </button>
+          ) : (
+            <p className="text-center text-xs text-slate-400">
+              Cancellation is available only more than 6 hours before pickup.
+            </p>
+          )}
+        </div>
+      ) : tripStep === 'ended' ? (
         <div className="p-4 bg-slate-900 border-t border-slate-800 shrink-0">
           <button
             onClick={handleProceedToPayment}

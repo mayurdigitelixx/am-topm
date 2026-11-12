@@ -4,6 +4,7 @@ import { TopBar } from '../components/TopBar';
 import { BottomNav } from '../components/BottomNav';
 import type { RideType } from '../types';
 import { Clock, MapPin, Car, Navigation, Briefcase, Sparkles, ShieldCheck, ChevronRight } from 'lucide-react';
+import { formatScheduledPickup, getScheduledPickupDate } from '../services/bookingUtils';
 
 export const DashboardScreen: React.FC = () => {
   const { 
@@ -62,6 +63,9 @@ export const DashboardScreen: React.FC = () => {
       iconColor: 'text-purple-400',
     },
   ];
+  const isScheduledRide =
+    activeBooking?.status === 'driver_assigned' &&
+    getScheduledPickupDate(activeBooking.scheduledTime) !== null;
 
   return (
     <div className="flex-1 flex flex-col justify-between bg-slate-950 text-slate-100">
@@ -80,13 +84,19 @@ export const DashboardScreen: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Ride Active</span>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-mono">
-                    OTP: {activeBooking.startOtp}
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+                    {isScheduledRide ? 'Scheduled Ride' : 'Ride Active'}
                   </span>
+                  {!isScheduledRide && (
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded font-mono">
+                      OTP: {activeBooking.startOtp}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-slate-300 font-medium mt-0.5">
-                  Driver: {activeBooking.driver?.name || 'Assigned'}
+                  {isScheduledRide
+                    ? formatScheduledPickup(activeBooking.scheduledTime)
+                    : `Driver: ${activeBooking.driver?.name || 'Assigned'}`}
                 </p>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { Booking, FareBreakdown, RideType, TransmissionType, User, VehicleCategory } from '../types';
 import { apiService } from '../services/apiService';
+import { IMMEDIATE_BOOKING_LABEL } from '../services/bookingUtils';
 
 export type ScreenType = 
   | 'splash'
@@ -31,6 +32,8 @@ interface AppContextType {
   selectedTransmission: TransmissionType;
   packageHours: number;
   packageKm: number;
+  isAdvanceBooking: boolean;
+  scheduledPickupTime: string;
   isCustomerCar: boolean;
   selectedCarId: string | null;
   estimatedFare: FareBreakdown | null;
@@ -49,6 +52,8 @@ interface AppContextType {
   setSelectedTransmission: (trans: TransmissionType) => void;
   setPackageHours: (hrs: number) => void;
   setPackageKm: (km: number) => void;
+  setIsAdvanceBooking: (val: boolean) => void;
+  setScheduledPickupTime: (time: string) => void;
   setIsCustomerCar: (val: boolean) => void;
   setSelectedCarId: (id: string | null) => void;
   updateEstimatedFare: () => void;
@@ -78,6 +83,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedTransmission, setSelectedTransmission] = useState<TransmissionType>('Automatic');
   const [packageHours, setPackageHours] = useState<number>(4);
   const [packageKm, setPackageKm] = useState<number>(40);
+  const [isAdvanceBooking, setIsAdvanceBooking] = useState<boolean>(false);
+  const [scheduledPickupTime, setScheduledPickupTime] = useState<string>('');
   const [isCustomerCar, setIsCustomerCar] = useState<boolean>(true);
   const [selectedCarId, setSelectedCarId] = useState<string | null>('car1');
   const [estimatedFare, setEstimatedFare] = useState<FareBreakdown | null>(null);
@@ -129,6 +136,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const startBookingFlow = (type: RideType) => {
     setSelectedRideType(type);
     setStops([]);
+    setIsAdvanceBooking(false);
+    setScheduledPickupTime('');
     if (type === 'drop') {
       setPackageHours(2);
       setPackageKm(25);
@@ -144,6 +153,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const confirmBooking = async (): Promise<Booking> => {
+    const pickupDate = isAdvanceBooking ? new Date(scheduledPickupTime) : null;
+    if (isAdvanceBooking && (!pickupDate || Number.isNaN(pickupDate.getTime()) || pickupDate.getTime() <= Date.now())) {
+      throw new Error('Choose a future pickup date and time.');
+    }
+
     if (!estimatedFare) {
       updateEstimatedFare();
     }
@@ -155,7 +169,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       pickupAddress,
       dropAddress: selectedRideType === 'drop' || selectedRideType === 'outstation' ? dropAddress : undefined,
       stops: stops.length > 0 ? stops : undefined,
-      scheduledTime: 'Immediate (Within 15 mins)',
+      scheduledTime: pickupDate ? pickupDate.toISOString() : IMMEDIATE_BOOKING_LABEL,
       packageHours,
       packageKm,
       vehicleCategory: selectedCategory,
@@ -167,7 +181,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     setActiveBooking(booking);
-    showToast(`Driver Assigned! Start Trip OTP: ${booking.startOtp}`);
+    showToast(
+      isAdvanceBooking
+        ? `Scheduled trip confirmed for ${new Date(booking.scheduledTime).toLocaleString()}.`
+        : `Driver Assigned! Start Trip OTP: ${booking.startOtp}`
+    );
     navigateTo('active_trip');
     return booking;
   };
@@ -195,6 +213,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         selectedTransmission,
         packageHours,
         packageKm,
+        isAdvanceBooking,
+        scheduledPickupTime,
         isCustomerCar,
         selectedCarId,
         estimatedFare,
@@ -212,6 +232,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedTransmission,
         setPackageHours,
         setPackageKm,
+        setIsAdvanceBooking,
+        setScheduledPickupTime,
         setIsCustomerCar,
         setSelectedCarId,
         updateEstimatedFare,

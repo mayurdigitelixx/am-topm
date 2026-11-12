@@ -4,6 +4,7 @@ import { TopBar } from '../components/TopBar';
 import { BottomNav } from '../components/BottomNav';
 import { apiService } from '../services/apiService';
 import { CalendarClock, Clock, ChevronRight } from 'lucide-react';
+import { formatScheduledPickup, getScheduledPickupDate } from '../services/bookingUtils';
 
 export const RidesHistoryScreen: React.FC = () => {
   const { navigateTo, setActiveBooking } = useApp();
@@ -29,14 +30,25 @@ export const RidesHistoryScreen: React.FC = () => {
             </button>
           </div>
         ) : (
-          bookings.map((booking) => (
+          bookings.map((booking) => {
+            const isCancelled = booking.status === 'cancelled';
+            const scheduledPickup = getScheduledPickupDate(booking.scheduledTime);
+            const isScheduled = booking.status === 'driver_assigned' && scheduledPickup !== null;
+
+            return (
             <div
               key={booking.id}
-              onClick={() => {
-                setActiveBooking(booking);
-                navigateTo(booking.status === 'completed' ? 'payment' : 'active_trip');
-              }}
-              className="p-3.5 bg-slate-900 rounded-2xl border border-slate-800 hover:border-slate-700 cursor-pointer transition space-y-2.5"
+              onClick={
+                isCancelled
+                  ? undefined
+                  : () => {
+                      setActiveBooking(booking);
+                      navigateTo(booking.status === 'completed' ? 'payment' : 'active_trip');
+                    }
+              }
+              className={`p-3.5 bg-slate-900 rounded-2xl border border-slate-800 transition space-y-2.5 ${
+                isCancelled ? '' : 'cursor-pointer hover:border-slate-700'
+              }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -46,9 +58,19 @@ export const RidesHistoryScreen: React.FC = () => {
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                     booking.status === 'completed'
                       ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'bg-amber-500/20 text-amber-300 animate-pulse'
+                      : isCancelled
+                        ? 'bg-red-500/20 text-red-300'
+                        : isScheduled
+                          ? 'bg-blue-500/20 text-blue-300'
+                          : 'bg-amber-500/20 text-amber-300 animate-pulse'
                   }`}>
-                    {booking.status === 'completed' ? 'Completed' : 'In Progress'}
+                    {booking.status === 'completed'
+                      ? 'Completed'
+                      : isCancelled
+                        ? 'Cancelled'
+                        : isScheduled
+                          ? 'Scheduled'
+                          : 'In Progress'}
                   </span>
                 </div>
                 <span className="text-xs font-bold text-amber-400 font-mono">
@@ -78,15 +100,22 @@ export const RidesHistoryScreen: React.FC = () => {
               <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
                 <div className="flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5" />
-                  <span>{new Date(booking.createdAt).toLocaleDateString()}</span>
+                  <span>
+                    {scheduledPickup
+                      ? `Pickup ${formatScheduledPickup(booking.scheduledTime)}`
+                      : `Booked ${new Date(booking.createdAt).toLocaleDateString()}`}
+                  </span>
                 </div>
-                <div className="flex items-center text-amber-400 font-medium">
-                  <span>View Details</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </div>
+                {!isCancelled && (
+                  <div className="flex items-center text-amber-400 font-medium">
+                    <span>View Details</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </div>
+                )}
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 
